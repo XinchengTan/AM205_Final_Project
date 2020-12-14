@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import math
 from scipy.linalg import hadamard
 from sklearn import linear_model
+from scipy.optimize import minimize
 
 def RLA_mult(A, B, c, distribution = "uniform"):
 	"""
@@ -295,6 +296,44 @@ def RLasso_projection(A, b, err_tolerance, Cq, Ck, alpha=0.1):
     # use clf.intercept_ to get the intercept
     # use clf.coef_ to get the coefficients
     return clf
+
+
+
+def SLRviaRP(X, y, lam_0, lam_min, k, eta, T, gamma=0):
+	"""
+	Accelerated Sparse Linear Regression via Random Projection.
+
+	input:
+	X: d*n matrix
+	"""
+	d, n = X.shape
+	Z = np.random.normal(0, 1, d*k).reshape(d, k)
+	X_t = np.transpose(X)
+	Q, R = np.linalg.qr(np.matmul(X_t, Z))
+	X_hat = np.matmul(np.matmul(X, Q), np.transpose(Q))
+
+
+	def f(x):
+		# the target optimization problem
+		# this function will be used in the scipy minimize function
+		first_term = -(1/n)*np.matmul(np.matmul(np.transpose(x-B_t),X_hat),y-np.matmul(np.transpose(X_hat),B_t))
+		regularizing_terms = lam_t*LA.norm(x,1) + gamma/2*LA.norm(x-B_t)**2
+		return first_ter + regularizing_terms
+
+	B_t = np.zeros((d,1))
+	for t in range(T):
+		lam_t = max(lam_min, lam_0*(eta**t))
+		# now we solve the optimization problem listed in the algorithm line 9
+
+		B_next = minimize(f, B_t, method="Newton-CG")
+
+		B_t = B_next
+
+	return B_t
+
+
+
+
 
 
 # test
