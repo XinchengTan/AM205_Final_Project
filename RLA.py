@@ -298,6 +298,31 @@ def RLasso_projection(A, b, err_tolerance, Cq, Ck, alpha=0.1):
     return clf
 
 
+def RLA_cov(X, c, assume_centered=True, sampler="uniform", bias=False):
+	"""
+	Uses RLA to compute sample covariance matrix.
+
+	:param X: data matrix of shape (n-features, n-samples=N)
+	:param c: positive integer, the number of samples
+	:param assume_centered: True if each feature of X is centered around 0
+	:param sampler: RLA distribution
+	:param bias: If true, divide by (N-1), otherwise by N
+	:return:
+
+	"""
+	if not assume_centered:
+		X = np.transpose(np.transpose(X) - np.mean(X, axis=1))
+	_, N = X.shape
+	cov = RLA_mult(X, np.transpose(X), c=c, distribution=sampler)
+
+	if bias:
+		return cov / N
+	else:
+		return cov / (N-1)
+
+
+
+
 
 def SLRviaRP(X, y, lam_0, lam_min, k, eta, T, gamma=0):
 	"""
