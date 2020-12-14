@@ -3,9 +3,11 @@ import warnings
 import operator
 import sys
 import time
+from RLA import *
 
 import numpy as np
 from scipy import linalg
+from scipy.linalg import fractional_matrix_power
 
 from sklearn.covariance import empirical_covariance, EmpiricalCovariance, log_likelihood
 
@@ -76,7 +78,7 @@ def alpha_max(emp_cov):
 def graphical_lasso(emp_cov, alpha, cov_init=None, mode='cd', tol=1e-4,
                     enet_tol=1e-4, max_iter=100, verbose=False,
                     return_costs=False, eps=np.finfo(np.float64).eps,
-                    return_n_iter=False):
+                    return_n_iter=False, isRLA=False):
     """l1-penalized covariance estimator
 
     Read more in the :ref:`User Guide <sparse_inverse_covariance>`.
@@ -218,10 +220,15 @@ def graphical_lasso(emp_cov, alpha, cov_init=None, mode='cd', tol=1e-4,
                         coefs = -(precision_[indices != idx, idx]
                                   / (precision_[idx, idx] + 1000 * eps))
                         # TODO: swap in RLA LASSO with the following enet_coordinate_descent_gram() function!
-                        coefs, _, _, _ = enet_coordinate_descent_gram(
-                            coefs, alpha, 0, sub_covariance,
-                            row, row, max_iter, enet_tol,
-                            check_random_state(None), False)
+                        if isRLA:
+                            coefs = SLRviaRP(sub_covariance, 
+                                             np.matmul(fractional_matrix_power(sub_covariance, -0.5), row),
+                                             0.01, 0.05, 30, 1.1, 100, gamma=0)
+                        else:
+                            coefs, _, _, _ = enet_coordinate_descent_gram(
+                                coefs, alpha, 0, sub_covariance,
+                                row, row, max_iter, enet_tol,
+                                check_random_state(None), False)
                     else:
                         # Use LARS
                         _, _, coefs = lars_path_gram(
