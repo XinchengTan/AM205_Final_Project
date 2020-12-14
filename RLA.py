@@ -4,31 +4,12 @@ from numpy import linalg as LA
 import pandas as pd
 import types
 import random
+import matplotlib.pyplot as plt
+import math
+from scipy.linalg import hadamard
+from sklearn import linear_model
 
-
-def RLA_cov(X, c, assume_centered=True, sampler="uniform", bias=False):
-  """
-  Uses RLA to compute sample covariance matrix.
-
-  :param X: data matrix of shape (n-features, n-samples=N)
-  :param c: positive integer, the number of samples
-  :param assume_centered: True if each feature of X is centered around 0
-  :param sampler: RLA distribution
-  :param bias: If true, divide by (N-1), otherwise by N
-  :return:
-  """
-  if not assume_centered:
-    X = np.transpose(np.transpose(X) - np.mean(X, axis=1))
-  _, N = X.shape
-  cov = RLA_mult(X, np.transpose(X), c=c, distribution=sampler)
-
-  if bias:
-    return cov / N
-  else:
-    return cov / (N-1)
-
-
-def RLA_mult(A, B, c, distribution="uniform"):
+def RLA_mult(A, B, c, distribution = "uniform"):
 	"""
 	This function takes two large matrices A and B,
 	and computes A*B through random linear algebra method.
@@ -167,6 +148,153 @@ def frobenius_dist(true_mat, approx_mat):
 
 
 
+
+
+def traditional_mult(A, B):
+    """
+    This function takes two large matrices A and B,
+    and computes A*B through traditional multiplication method. 
+
+    input:
+    A: m * n matrix (it can be numpy array or 2D python list)
+    B: n * p matrix (it can be numpy array or 2D python list)
+    ----------------
+    output: AB
+    """
+
+    # convert A and B to numpy arrays
+    if type(A) is list:
+        A = np.array(A)
+    if type(B) is list:
+        B = np.array(B)
+        
+    m = A.shape[0]    # A: m*n; B:n*p
+    n = A.shape[1]
+    p = B.shape[1]
+    # check if dimensions of two matrices match
+    if n != B.shape[0]:
+        print("Dimensions of two matrices don't match.")
+        return
+    
+    AB = np.zeros((m,p))
+    
+    for i in range(m):
+        for j in range(p):
+            AB[i,j] = np.matmul(A[i,:],B[:,j])
+    
+    return AB
+
+
+
+
+def RLasso_sampling(A, b, err_tolerance, alpha=0.1):
+    """
+    A is a n*d matrix, b is a n-element vector.
+    We aim to use random sampling to construct a reduced version of the problem,
+    and solve through LASSO regression.
+    
+    input: 
+    A: numpy 2D array of n*d representing data points where n is the number of data points
+    b: n-element vector
+    alpha: hyperparameter representing the coefficient in front of LASSO regularizing factor
+    err_tolerance: error tolerance for the randomized regression
+    ---------------------------------
+    output: a model object that contains approximated solution x for Ax=b using LASSO regression
+    """
+    n = A.shape[0]
+    d = A.shape[1]
+
+    # compute the proper r
+    ln40nd = np.log(40*n*d)
+    r = max(48*48*d*ln40nd*np.log(10000*d*ln40nd), 40*d*ln40nd/err_tolerance)
+    r = int(r)
+    print("Computed r is", r)
+    
+    # construct S matrix
+    S = np.zeros((n,r))
+    for l in range(r):
+        k_l = random.randint(0, n-1)
+        S[k_l, l] = math.sqrt(n/r)
+    
+    # construct H, note that H is n*n where n is a power of 2
+    H = hadamard(n)/sqrt(n)
+    
+    # construct D, note that D is n*n diagonal matrix
+    D = np.identity(n)
+    for i in range(n):
+        if random.random() < 0.5:
+            D[i,i] = -1
+    
+    P = np.matmul(np.matmul(np.transpose(S), H), D)
+    newA = np.matmul(P, A)
+    newb = np.matmul(P, b)
+    
+    # solve the lasso regression problem
+    clf = linear_model.Lasso(alpha=alpha)
+    clf.fit(newA, newb)
+    
+    # returns a model object.
+    # use clf.intercept_ to get the intercept
+    # use clf.coef_ to get the coefficients
+    return clf
+
+
+
+
+def RLasso_projection(A, b, err_tolerance, Cq, Ck, alpha=0.1):
+    """
+    A is a n*d matrix, b is a n-element vector.
+    We aim to use random sampling to construct a reduced version of the problem,
+    and solve through LASSO regression.
+    
+    input: 
+    A: numpy 2D array of n*d representing data points where n is the number of data points
+    b: n-element vector
+    alpha: hyperparameter representing the coefficient in front of LASSO regularizing factor
+    err_tolerance: error tolerance for the randomized regression
+    Cq: tunable hyperparameters according to the random projection algorithm
+    Ck: tunable hyperparameters according to the random projection algorithm
+    ---------------------------------
+    output: a model object that contains approximated solution x for Ax=b using LASSO regression
+    """
+    n = A.shape[0]
+    d = A.shape[1]
+
+    # compute the proper r
+    ln40nd = np.log(40*n*d)
+    q = Cq*d*ln40nd/n*(2*np.log(n)+16*d+16)
+    print(q)
+    r = int(max(Ck*(188*188*d+98*98), 60*d/err_tolerance))
+    
+    # construct T matrix
+    T = np.zeros((r,n))
+    for i in range(r):
+        for j in range(n):
+            possible_entries = [sqrt(1/r/q), -sqrt(1/r/q), 0]
+            weights = [q/2, q/2, 1-q]
+            T[i,j] = np.random.choice(possible_entries, p = weights)
+    
+    # construct H, note that H is n*n where n is a 
+    H = hadamard(n)/sqrt(n)
+    
+    # construct D, note that D is n*n diagonal matrix
+    D = np.identity(n)
+    for i in range(n):
+        if random.random() < 0.5:
+            D[i,i] = -1
+    
+    P = np.matmul(np.matmul(T, H), D)
+    newA = np.matmul(P, A)
+    newb = np.matmul(P, b)
+    
+    # solve the lasso regression problem
+    clf = linear_model.Lasso(alpha=alpha)
+    clf.fit(newA, newb)
+    
+    # returns a model object.
+    # use clf.intercept_ to get the intercept
+    # use clf.coef_ to get the coefficients
+    return clf
 
 
 # test
