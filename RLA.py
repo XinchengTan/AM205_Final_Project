@@ -6,7 +6,17 @@ import types
 import random
 
 
-def RLA_cov(X, c, assume_centered=True, sampler="uniform", bias=False):
+def standardize_square_mat(mat):
+  p, n = np.shape(mat)
+  assert p == n, "Input matrix is not a square matrix!"
+
+  sqrt_diag = np.reshape(np.diag(mat) ** 0.5, (p, 1))
+  standardizer = sqrt_diag * sqrt_diag.T
+  std_prec = mat / standardizer
+  return std_prec
+
+
+def RLA_cov(X, c, standardize=False, assume_centered=True, sampler="uniform", bias=False):
   """
   Uses RLA to compute sample covariance matrix.
 
@@ -19,13 +29,14 @@ def RLA_cov(X, c, assume_centered=True, sampler="uniform", bias=False):
   """
   if not assume_centered:
     X = np.transpose(np.transpose(X) - np.mean(X, axis=1))
+
   _, N = X.shape
   cov = RLA_mult(X, np.transpose(X), c=c, distribution=sampler)
 
-  if bias:
-    return cov / N
-  else:
-    return cov / (N-1)
+  cov = cov / N if bias else cov / (N-1)
+
+  return standardize_square_mat(cov) if standardize else cov
+
 
 
 def RLA_mult(A, B, c, distribution="uniform"):
@@ -167,18 +178,3 @@ def frobenius_dist(true_mat, approx_mat):
 
 
 
-
-
-# test
-# a = np.array([[1, 2, 0],
-# 	          [3, 4, 2]])
-# b = np.array([[3, 4, 5],
-# 	          [5, 6, 8]])
-# print(frobenius_dist(a,b))
-
-# print("Normal matrix multiplication:")
-# print(np.matmul(a, b))
-# print("Minimize variance RLA multiplication:")
-# print(RLA_mult(a, b, 20, "minvar"))
-# print("Uniform distirbution RLA multiplication:")
-# print(RLA_mult(a, b, 20))
