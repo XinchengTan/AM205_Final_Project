@@ -2,17 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f470041b-4ade-4282-8fc6-90bd8dc452ad" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/evals.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Glasso_sklearn.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Neuronal Functional Connectivity Estimation.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Neuronal Functional Connectivity Estimation.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/RLA.py" beforeDir="false" afterPath="$PROJECT_DIR$/RLA.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/RLA_glasso.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_loader.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/enet_coord_descent_gram.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/plot_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -47,13 +37,13 @@
         <counts>
           <entry key="Python Console" value="469" />
           <entry key="dummy" value="1" />
-          <entry key="md" value="671" />
+          <entry key="md" value="673" />
           <entry key="py" value="9215" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Markdown" value="671" />
+          <entry key="Markdown" value="673" />
           <entry key="PLAIN_TEXT" value="1" />
           <entry key="Python" value="9684" />
         </counts>
@@ -153,7 +143,7 @@
         <entry file="file://$PROJECT_DIR$/NearestPSD/shrinking.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="271">
-              <caret line="29" column="26" lean-forward="true" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
+              <caret line="29" column="26" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
             </state>
           </provider>
         </entry>
@@ -400,7 +390,7 @@
     <entry file="file://$PROJECT_DIR$/NearestPSD/shrinking.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="271">
-          <caret line="29" column="26" lean-forward="true" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
+          <caret line="29" column="26" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
         </state>
       </provider>
     </entry>
