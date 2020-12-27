@@ -8,7 +8,7 @@ We would like to compare the difference in the estimated result between regular 
 
 
 ## Report
-Please see our formalized results and conclusions in **AM205_Final_Report.pdf**.
+Please see **AM205_Final_Report.pdf** for our final results and conclusions.
 
 
 ## Dataset
@@ -23,4 +23,4 @@ The main code for functional connectivity estimation is in **Neuronal Functional
 The code for randomized linear algebra matrix multiplication is in **RLA_tests_graphs.ipynb**.  
   
 The rest of the .py files provide helper functions to load the dataset,
-apply the Gaussian graphical model with and without RLA, and plot the estimated results under various measures.
+apply the Gaussian graphical model with and without RLA, and plot the estimated results under various evaluation metrics.
