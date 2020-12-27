@@ -1,3 +1,4 @@
+# This file is an RLA enhanced version of sklearn's implementation of graphical lasso
 from collections.abc import Sequence
 import warnings
 import operator
@@ -13,14 +14,9 @@ from sklearn.covariance import empirical_covariance, EmpiricalCovariance, log_li
 
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.validation import check_random_state, check_array
-from sklearn.linear_model import lars_path_gram
 
-# TODO: all coord_descent implementations used _cd_fast's enet_coordinate_descent_gram
-# from sklearn.linear_model import coordinate_descent, _coordinate_descent, cd_fast
 from enet_coord_descent_gram import enet_coordinate_descent_gram
 
-
-from sklearn.model_selection import check_cv, cross_val_score
 
 
 # Helper functions to compute the objective and dual objective functions
@@ -74,7 +70,6 @@ def alpha_max(emp_cov):
 
 
 # The g-lasso algorithm
-
 def graphical_lasso(emp_cov, alpha, cov_init=None, mode='cd', tol=1e-4,
                     enet_tol=1e-4, max_iter=100, verbose=False,
                     return_costs=False, eps=np.finfo(np.float64).eps,
@@ -231,10 +226,11 @@ def graphical_lasso(emp_cov, alpha, cov_init=None, mode='cd', tol=1e-4,
                                 check_random_state(None), False)
                     else:
                         # Use LARS
-                        _, _, coefs = lars_path_gram(
-                            Xy=row, Gram=sub_covariance, n_samples=row.size,
-                            alpha_min=alpha / (n_features - 1), copy_Gram=True,
-                            eps=eps, method='lars', return_path=False)
+                        raise Exception("LARS not supported yet!")
+                        # _, _, coefs = lars_path_gram(
+                        #     Xy=row, Gram=sub_covariance, n_samples=row.size,
+                        #     alpha_min=alpha / (n_features - 1), copy_Gram=True,
+                        #     eps=eps, method='lars', return_path=False)
                 # Update the precision matrix
                 precision_[idx, idx] = (
                     1. / (covariance_[idx, idx]
@@ -282,3 +278,7 @@ def graphical_lasso(emp_cov, alpha, cov_init=None, mode='cd', tol=1e-4,
         else:
             return covariance_, precision_
 
+
+if __name__ == "__main__":
+
+    pass

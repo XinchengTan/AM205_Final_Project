@@ -10,6 +10,40 @@ from scipy.linalg import hadamard
 from sklearn import linear_model
 from scipy.optimize import minimize
 
+
+def standardize_square_mat(mat):
+  p, n = np.shape(mat)
+  assert p == n, "Input matrix is not a square matrix!"
+
+  sqrt_diag = np.reshape(np.diag(mat) ** 0.5, (p, 1))
+  standardizer = sqrt_diag * sqrt_diag.T
+  std_prec = mat / standardizer
+  return std_prec
+
+
+def RLA_cov(X, c, standardize=False, assume_centered=True, sampler="uniform", bias=False):
+  """
+  Uses RLA to compute sample covariance matrix.
+
+  :param X: data matrix of shape (n-features, n-samples=N)
+  :param c: positive integer, the number of samples
+  :param assume_centered: True if each feature of X is centered around 0
+  :param sampler: RLA distribution
+  :param bias: If true, divide by (N-1), otherwise by N
+  :return:
+  """
+  if not assume_centered:
+    X = np.transpose(np.transpose(X) - np.mean(X, axis=1))
+
+  _, N = X.shape
+  cov = RLA_mult(X, np.transpose(X), c=c, distribution=sampler)
+
+  cov = cov / N if bias else cov / (N-1)
+
+  return standardize_square_mat(cov) if standardize else cov
+
+
+
 def RLA_mult(A, B, c, distribution = "uniform"):
 	"""
 	This function takes two large matrices A and B,
@@ -126,9 +160,6 @@ def generate_matrix(m, n, method=1, param = [0,1]):
 
 
 
-
-
-
 def frobenius_dist(true_mat, approx_mat):
 	"""
 	This function computes the frobenius distance between the approximated matrix
@@ -146,8 +177,6 @@ def frobenius_dist(true_mat, approx_mat):
 		return LA.norm(diff, 'fro')
 	else:
 		print("Dimensions of two matricies doesn't match.")
-
-
 
 
 
@@ -362,15 +391,17 @@ def SLRviaRP(X, y, lam_0, lam_min, k, eta, T, gamma=0):
 
 
 # test
-# a = np.array([[1, 2, 0],
-# 	          [3, 4, 2]])
-# b = np.array([[3, 4, 5],
-# 	          [5, 6, 8]])
-# print(frobenius_dist(a,b))
+if __name__ == "__main__":
+	# a = np.array([[1, 2, 0],
+	# 	          [3, 4, 2]])
+	# b = np.array([[3, 4, 5],
+	# 	          [5, 6, 8]])
+	# print(frobenius_dist(a,b))
 
-# print("Normal matrix multiplication:")
-# print(np.matmul(a, b))
-# print("Minimize variance RLA multiplication:")
-# print(RLA_mult(a, b, 20, "minvar"))
-# print("Uniform distirbution RLA multiplication:")
-# print(RLA_mult(a, b, 20))
+	# print("Normal matrix multiplication:")
+	# print(np.matmul(a, b))
+	# print("Minimize variance RLA multiplication:")
+	# print(RLA_mult(a, b, 20, "minvar"))
+	# print("Uniform distirbution RLA multiplication:")
+	# print(RLA_mult(a, b, 20))
+	pass

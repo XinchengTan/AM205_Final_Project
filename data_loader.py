@@ -1,7 +1,6 @@
-# Loads .mat datasets into RecordingData objects
+# Loads .mat datasets into RecordingData objects with methods to visualize its meta information
 
 from copy import deepcopy
-from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,8 +20,7 @@ import utils
 #  - stat: single cell statistics of cell detection algorithm (Suite2p)
 #  - stim: properties of the stimulus
 #  - med: estimated 3D position of cells in tissue.
-# TODO: Think about building an 'extensible' dataset, to maximize the container's ability to accept data of other formats.
-# TODO: 1. Create dicts/NamedTuples for neuron-based and for time-based auxiliary information.
+
 class RecordingData(object):
   """
   This class is a container for calcium imaging data with auxiliary physiological and behavioral information.
@@ -35,13 +33,17 @@ class RecordingData(object):
       self.recording = scipy.io.loadmat(data_fp)
 
       # Neural signals
-      self.fsp = np.array(self.recording.get("Fsp")[:, 1:])  # Neural responses * timepoints (remove t=0 with all zeros)
+      self.fsp = np.array(self.recording.get("Fsp"))  # Neural responses * timepoints (remove t=0 with all zeros)
       self.neuron_counts = self.fsp.shape[0]
-      self.timestamp_counts = self.fsp.shape[1]  # TODO: Is the timestamp evenly spaced?
+      zerovar_neurons = self.clean_fsp()
+      self.timestamp_counts = self.fsp.shape[1]
       self.timestamp_offset = 0
 
       # Estimated 3D position of the cell
-      self.neuron_xyz = np.array(self.recording.get("med"))  # Neural responses * 3
+      self.neuron_xyz = np.array(self.recording.get("med"))
+      if len(zerovar_neurons) > 0:
+        self.neuron_xyz = np.delete(self.neuron_xyz, zerovar_neurons, axis=0)  # Neural responses * 3
+
       self.layers_zcoord = sorted(set(self.neuron_xyz[:, 2]))
       self.layer_counts = len(self.layers_zcoord)
       # Sort neuron index by layer
@@ -50,9 +52,41 @@ class RecordingData(object):
 
     else:
       # Copy the attributes from another RecordingData object
-      # TODO: Jupyter notebook's autoreload cannot handle this check, disable it for now
+      # Note: Jupyter notebook's autoreload cannot handle this check, disable it for now
       # assert isinstance(recording_data, RecordingData)
       self.__dict__ = deepcopy(recording_data.__dict__)
+
+
+  def clean_fsp(self):
+    nan_cols = np.where(np.isnan(self.fsp))[1]
+    if len(nan_cols) > 0:
+      print("Removing %d columns that contain NaN!" % len(nan_cols))
+      self.fsp = np.delete(self.fsp, nan_cols, axis=1)
+
+    inf_cols = np.where(np.isinf(self.fsp))[1]
+    if len(inf_cols) > 0:
+      print("Removing %d columns that contain Inf!" % len(inf_cols))
+      self.fsp = np.delete(self.fsp, inf_cols, axis=1)
+
+    allzero_cols = []
+    p, T = self.fsp.shape
+    for c in range(T):
+      if np.all(self.fsp[:, c] == 0):
+        allzero_cols.append(c)
+    if len(allzero_cols) > 0:
+      print("Removing %d all-zero columns" % len(allzero_cols))
+      self.fsp = np.delete(self.fsp, allzero_cols, axis=1)
+
+    # Check if any neuron has uniform signal (i.e. var = 0)
+    zerovar_neurons = []
+    for i in range(p):
+      if np.var(self.fsp[i]) == 0:
+        zerovar_neurons.append(i)
+    if len(zerovar_neurons) > 0:
+      print("Removing %d zero-variance neurons" % len(zerovar_neurons))
+      self.fsp = np.delete(self.fsp, zerovar_neurons, axis=0)
+    return zerovar_neurons
+
 
   def validate(self):
     # Validate the initialization
@@ -144,20 +178,26 @@ class RecordingData(object):
     ax = plt.axes(projection='3d')
     if layers is None:
       ax.scatter3D(self.neuron_xyz[:, 0], self.neuron_xyz[:, 1], self.neuron_xyz[:, 2],
-                   c=self.neuron_xyz[:, 2], cmap="viridis", linewidth=0.5, s=18)
+                   c=self.neuron_xyz[:, 2], cmap="viridis", linewidth=0.5, s=28)
     else:
       zs = [self.layers_zcoord[layer] for layer in layers]
       neurons = [self.layer2neurons[z] for z in zs]
       for ns in neurons:
         ax.scatter3D(self.neuron_xyz[ns, 0], self.neuron_xyz[ns, 1], self.neuron_xyz[ns, 2],
-                     c=self.neuron_xyz[ns, 2], cmap="viridis", linewidth=0.5)
-    if isinstance(self, SpontaneousRecordingData):
-      ax.set_title("Neuron Locations [Session: %s]" % self.session_name, fontsize=16, fontweight="bold")
-    else:
-      ax.set_title("Neuron Locations [Session: %s]" % session_name, fontsize=16, fontweight="bold")
-    ax.set_xlabel("x (um)")
-    ax.set_ylabel("y (um)")
-    ax.set_zlabel("Depth (um)")
+                     c=self.neuron_xyz[ns, 2], cmap="viridis", linewidth=0.5,s=25)
+
+    ax.set_title("Neuron 3D Locations", fontsize=20, fontweight="bold")
+    ax.set_xlabel("x (um)", fontsize=16)
+    ax.set_ylabel("y (um)", fontsize=16)
+    ax.set_zlabel("Depth (um)", fontsize=16)
+
+  def display_single_neuron_fsp(self, neuron_idx):
+    ts = np.arange(self.timestamp_counts) / 180 if self.layer_counts <= 10 else np.arange(self.timestamp_counts) / 150
+    plt.plot(ts, self.fsp[neuron_idx])
+    plt.title("Neuron Fluorescence Trace", fontsize=17)
+    plt.xlabel("Timestamp (min)", fontsize=14)
+    plt.ylabel("Fluorescence Intensity", fontsize=14)
+    plt.show()
 
 
   # Auxiliary Information
@@ -304,255 +344,3 @@ class SpontaneousRecordingData(RecordingData):
     return {"fsp": {"mean": fsp_mean, "std": fsp_std},
             "run_speed": {"mean": run_speed_mean, "std": run_speed_std},
             "pupil_area": {"mean": pa_mean, "std": pa_std}}
-
-
-
-
-class PartialSpontDataset(SpontaneousRecordingData):
-
-  def __init__(self, dataset: SpontaneousRecordingData, *, layersOI=None,
-               start_timepoint=None, end_timepoint=None,
-               ul_coord=None, lr_coord=None):
-    """
-    This class samples a partial recording from an original calcium imaging dataset along 3 possible dimensions:
-      - neuron layer
-      - x-y plane
-      - timepoints (observations)
-
-    :param dataset: File path to the dataset to load the original RecordingData
-    :param layersOI: A list of layer indices to include in this PartialRecordingDataset
-    :param start_timepoint: (inclusive) start time index with respect to the original full RecordingData
-    :param end_timepoint: (exclusive) end time index with respect to the original full RecordingData
-    :param ul_coord: upper left x-y coordinate of the neural cube to sample
-    :param lr_coord: lower right x-y coordinate of the neural cube to sample
-    """
-    if type(dataset).__name__ != "SpontaneousRecordingData":
-      raise AttributeError("Input dataset has to be of type SpontaneousRecordingData")
-
-    # Initialize all fields with that of the input RecordingData
-    super().__init__(recording_data=dataset)
-    self.original_dataset = dataset
-
-    # Chunk along layer (z-axis)
-    if layersOI:
-      # Overwrite the fields containing the neuron data, leaving only those in the 'layers of interest'.
-      self.fsp = dataset.get_layers_fsp(layers=layersOI)
-      self.neuron_counts = self.fsp.shape[0]
-      self.neuron_xyz = dataset.get_layers_xyz(layers=layersOI)
-      self.layers_zcoord = sorted(set(self.neuron_xyz[:, 2]))
-      self.layer_counts = len(self.layers_zcoord)
-      self.layer2neurons = {zcoord: np.where(self.neuron_xyz[:, 2] == zcoord)[0] for zcoord in self.layers_zcoord}
-
-    self.display_neuron_3d()
-    # # Chunk along time axis
-    # self.timestamp_offset = start_timepoint
-    #
-    # # Check args
-    # if not (0 <= start_timepoint < dataset.timestamp_counts):
-    #   raise ValueError("Start timepoint must lie in [0, %d)!" % dataset.timestamp_counts)
-    # if not (start_timepoint < end_timepoint <= dataset.timestamp_counts):
-    #   raise ValueError("End timepoint must lie in (start_tp=%d, %d]!" % (start_timepoint, dataset.timestamp_counts))
-    #
-    # # Chunk all temporal-based features
-    # start_ts = max(0, start_timepoint)
-    # end_ts = min(dataset.timestamp_counts, end_timepoint)
-    # self.fsp = dataset.fsp[:, start_ts:end_ts]
-    # self.timestamp_counts = end_ts - start_ts
-    # self.timestamp_offset += start_timepoint
-    #
-    # # Chunk behavioral features
-    # if isinstance(dataset, SpontaneousRecordingData) or isinstance(self.original_dataset, SpontaneousRecordingData):
-    #   self.run_speed = dataset.run_speed[start_ts:end_ts, :]
-    #   self.motion_svd = dataset.motion_svd[start_ts:end_ts, :]
-    #   self.whisker_motion_svd = dataset.whisker_motion_svd[start_ts:end_ts, :]
-    #   self.eye_motion_svd = dataset.eye_motion_svd[start_ts:end_ts, :]
-    #   self.pupil_area = dataset.pupil_area[start_ts:end_ts, :]
-    #   self.pupil_com = dataset.pupil_com[start_ts:end_ts, :]
-
-
-    #
-
-  def get_original_trace(self):
-    return np.array(self.original_dataset.fsp)
-
-  def get_original_time_period(self):
-    return (0, self.original_dataset.timestamp_counts)
-
-  def get_original_neuron_xyz(self):
-    return np.array(self.original_dataset.neuron_xyz)
-
-
-
-
-
-
-class PartialRecordingDataset(RecordingData):
-
-  def __init__(self, dataset: RecordingData, *, layersOI=None,
-               start_timepoint=None, end_timepoint=None,
-               ul_coord=None, lr_coord=None):
-    """
-    This class samples a partial recording from an original calcium imaging dataset along 3 possible dimensions:
-      - neuron layer
-      - x-y plane
-      - timepoints (observations)
-
-    :param dataset: File path to the dataset to load the original RecordingData
-    :param layersOI: A list of layer indices to include in this PartialRecordingDataset
-    :param start_timepoint: (inclusive) start time index with respect to the original full RecordingData
-    :param end_timepoint: (exclusive) end time index with respect to the original full RecordingData
-    :param ul_coord: upper left x-y coordinate of the neural cube to sample
-    :param lr_coord: lower right x-y coordinate of the neural cube to sample
-    """
-    super().__init__(recording_data=dataset)
-    print("Dataset class: ", type(dataset).__name__)
-    if isinstance(dataset, PartialRecordingDataset):
-      self.original_dataset = dataset.original_dataset
-    elif isinstance(dataset, RecordingData) or isinstance(dataset, SpontaneousRecordingData):
-      self.original_dataset = dataset
-
-  # TODO: Add necessary getter methods!
-  def get_partial_fsp(self, starttime=0, endtime=np.inf, display=False):
-    """
-    Returns a partial fsp from 'starttime' to 'endtime' (inclusive) with nan entries.
-    :param starttime:
-    :param endtime:
-    :param display:
-    :return:
-    """
-    return np.array(self.fsp)
-
-  def get_original_indices(self):
-    pass
-
-  def get_original_trace(self):
-    return np.array(self.original_dataset.fsp)
-
-  def get_original_time_period(self):
-    return (0, self.original_dataset.timestamp_counts)
-
-  def get_original_neuron_xyz(self):
-    return np.array(self.original_dataset.neuron_xyz)
-
-
-class PartialLayerRecordingDataset(PartialRecordingDataset):
-
-  def __init__(self, dataset: RecordingData, layersOI):
-    """
-    This class faithfully stores a subset of an input RecordingData among specified layers.
-
-    :param dataset: A RecordingData object, which can be partial.
-    :param layersOI: A list of layer indices with respect to 'dataset' instead of the very original dataset.
-    """
-    super().__init__(dataset=dataset, layersOI=layersOI)
-    print("[partial layer] original dataset:", self.original_dataset)
-
-    # Overwrite the fields containing the neuron data, leaving only those in the 'layers of interest'.
-    self.fsp = dataset.get_layers_fsp(layers=layersOI)
-    self.neuron_counts = self.fsp.shape[0]
-    self.neuron_xyz = dataset.get_layers_xyz(layers=layersOI)
-    self.layers_zcoord = sorted(set(self.neuron_xyz[:, 2]))
-    self.layer_counts = len(self.layers_zcoord)
-    self.layer2neurons = {zcoord: np.where(self.neuron_xyz[:, 2] == zcoord)[0] for zcoord in self.layers_zcoord}
-
-
-class PartialTimeRecordingDataset(PartialRecordingDataset):
-
-  def __init__(self, dataset: RecordingData, start_timepoint, end_timepoint):
-    """
-    This class faithfully stores a subset of an input RecordingData during a time period.
-    All the time-dependent fields are modified to store data during the specified period only.
-
-    Note: The start and end timepoint should be specified with respect to the input RecordingData,
-          instead of the very original dataset.
-
-    :param dataset: A RecordingData object, which can be partial.
-    :param start_timepoint: Index of the start timestamp in the time period of interest.
-    :param end_timepoint: Index of the ending timestamp in the time period of interest.
-    """
-    super().__init__(dataset=dataset, start_timepoint=start_timepoint, end_timepoint=end_timepoint)
-    self.timestamp_offset = start_timepoint
-
-    # Check args
-    if not (0 <= start_timepoint < dataset.timestamp_counts):
-      raise ValueError("Start timepoint must lie in [0, %d)!" % dataset.timestamp_counts)
-    if not (start_timepoint < end_timepoint <= dataset.timestamp_counts):
-      raise ValueError("End timepoint must lie in (start_tp=%d, %d]!" % (start_timepoint, dataset.timestamp_counts))
-
-    # Chunk all temporal-based features
-    start_ts = max(0, start_timepoint)
-    end_ts = min(dataset.timestamp_counts, end_timepoint)
-    self.fsp = dataset.fsp[:, start_ts:end_ts]
-    self.timestamp_counts = end_ts - start_ts
-    self.timestamp_offset += start_timepoint
-
-    # Chunk behavioral features
-    if isinstance(dataset, SpontaneousRecordingData) or isinstance(self.original_dataset, SpontaneousRecordingData):
-      self.run_speed = dataset.run_speed[start_ts:end_ts, :]
-      self.motion_svd = dataset.motion_svd[start_ts:end_ts, :]
-      self.whisker_motion_svd = dataset.whisker_motion_svd[start_ts:end_ts, :]
-      self.eye_motion_svd = dataset.eye_motion_svd[start_ts:end_ts, :]
-      self.pupil_area = dataset.pupil_area[start_ts:end_ts, :]
-      self.pupil_com = dataset.pupil_com[start_ts:end_ts, :]
-
-
-class PartialSpaceRecordingDataset(PartialRecordingDataset):
-
-  def __init__(self, dataset: RecordingData,
-               x_range: Tuple[float, float], y_range: Tuple[float, float], ratio=False):
-    """
-    This class stores a subset of neurons within a specified rectangular region.
-
-    :param dataset: A RecordingData object, which can be partial
-    :param x_range: Range of x coordinate
-    :param y_range: Range of y coordinate
-    :param ratio: If true, x_range and y_range are interpreted as the proportion w.r.t. dataset's neurons at each layer
-    """
-    super().__init__(dataset=dataset, ul_coord=x_range, lr_coord=y_range)
-
-    new_fsp, new_xyz = [], []
-    new_layer2neurons = {}
-
-    if ratio:
-      if not (0 <= x_range[0] < 1): raise ValueError("Min(x) should lie in (0, 1.0]!")
-      if not (0 < x_range[1] <= 1): raise ValueError("Max(x) should lie in (0, 1.0]!")
-      if not (0 <= y_range[0] < 1): raise ValueError("Min(y) should lie in (0, 1.0]!")
-      if not (0 < y_range[1] <= 1): raise ValueError("Max(y) should lie in (0, 1.0]!")
-
-      # In each layer, apply the bound to the neuron-related data
-      for z, neurons_idx in dataset.layer2neurons.items():
-        neuronXY_z = dataset.neuron_xyz[neurons_idx, :]
-        minX, minY = np.min(neuronXY_z, axis=0)[:2]
-        maxX, maxY = np.max(neuronXY_z, axis=0)[:2]
-        lx = minX + x_range[0] * (maxX - minX)
-        rx = minX + x_range[1] * (maxX - minX)
-        ly = minY + y_range[0] * (maxY - minY)
-        ry = minY + y_range[1] * (maxY - minY)
-        # Segment the neurons within the rectangular region
-        selected_neurons_idx = np.where((lx <= neuronXY_z[:, 0]) & (neuronXY_z[:, 0] <= rx) &
-                                        (ly <= neuronXY_z[:, 1]) & (neuronXY_z[:, 1] <= ry))[0]  # wrt segmented neuronXY_z
-        new_layer2neurons[z] = np.arange(len(new_xyz), len(new_xyz) + len(selected_neurons_idx), step=1)
-        new_xyz.extend(neuronXY_z[selected_neurons_idx])
-        new_fsp.extend(dataset.fsp[neurons_idx[selected_neurons_idx], :])
-
-    else:
-      for z, neurons_idx in dataset.layer2neurons.items():
-        neuronXY_z = dataset.neuron_xyz[neurons_idx, :]
-        minX, minY = np.min(neuronXY_z, axis=0)[:2]
-        maxX, maxY = np.max(neuronXY_z, axis=0)[:2]
-        lx = max(minX, x_range[0])
-        rx = min(maxX, x_range[1])
-        ly = max(minY, y_range[0])
-        ry = min(maxY, y_range[1])
-        # Segment the neurons within the rectangular region
-        selected_neurons_idx = np.where((lx <= neuronXY_z[:, 0]) & (neuronXY_z[:, 0] <= rx) &
-                                        (ly <= neuronXY_z[:, 1]) & (neuronXY_z[:, 1] <= ry))[0]
-        new_layer2neurons[z] = np.arange(len(new_xyz), len(new_xyz) + len(selected_neurons_idx), step=1)
-        new_xyz.extend(neuronXY_z[selected_neurons_idx])
-        new_fsp.extend(dataset.fsp[neurons_idx[selected_neurons_idx], :])
-
-    self.fsp = np.array(new_fsp)
-    self.neuron_counts = self.fsp.shape[0]
-    self.neuron_xyz = np.array(new_xyz)
-    self.layer2neurons = new_layer2neurons
-
