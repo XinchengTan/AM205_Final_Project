@@ -8,7 +8,7 @@ We would like to compare the difference in the estimated result between regular 
 
 
 ## Report
-Please see our formalized results and conclusions in <font color=blue>AM205_Final_Report.pdf</font>.
+Please see our formalized results and conclusions in @@AM205_Final_Report.pdf@@.
 
 
 ## Dataset
@@ -19,8 +19,8 @@ Note: In order to run the jupyter notebook code, please download the whole datas
 
 
 ## Code
-The main code for functional connectivity estimation is in <font color=blue>Neuronal Functional Connectivity Estimation.ipynb</font>.
-The code for randomized linear algebra matrix multiplication is in <font color=blue>RLA_tests_graphs.ipynb</font>.  
+The main code for functional connectivity estimation is in @@Neuronal Functional Connectivity Estimation.ipynb@@.
+The code for randomized linear algebra matrix multiplication is in @@RLA_tests_graphs.ipynb@@.  
   
 The rest of the .py files provide helper functions to load the dataset,
 apply the Gaussian graphical model with and without RLA, and plot the estimated results under various measures.
