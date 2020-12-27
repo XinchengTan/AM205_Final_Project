@@ -15,6 +15,13 @@ def check_PD(mat, mat_name=""):
   if mat.shape[0] != mat.shape[1]:
     raise ValueError("Input matrix for PD check must be a square matrix!")
 
+  nan_entries = np.where(np.isnan(mat))
+  inf_entries = np.where(np.isinf(mat))
+  if len(nan_entries[0]) > 0:
+    print("There are %d nan entries in mat!" % len(nan_entries[0]))
+  if len(inf_entries[0]) > 0:
+    print("There are %d inf entries in mat!" % len(inf_entries[0]))
+
   is_pd = np.all(np.linalg.eigvals(mat) > 0)
   chol_is_pd = shrinking.checkPD(mat)
   if is_pd and chol_is_pd:
