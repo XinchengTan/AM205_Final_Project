@@ -8,7 +8,7 @@ We would like to compare the difference in the estimated result between regular 
 
 
 ## Report
-Please see **AM205_Final_Report.pdf** for our final results and conclusions.
+Please see [**AM205_Final_Report.pdf**](https://github.com/XinchengTan/AM205_Final_Project/blob/main/AM205_Final_Report.pdf) for our final results and conclusions.
 
 
 ## Dataset
